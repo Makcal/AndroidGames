@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">My Game</string>
+    <string name="random_mode">Случайно</string>
+    <string name="snakeMode">Змейка</string>
+</resources>
