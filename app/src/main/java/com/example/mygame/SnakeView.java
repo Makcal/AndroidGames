@@ -4,17 +4,21 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.media.AsyncPlayer;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import androidx.annotation.NonNull;
 
-import java.security.spec.ECField;
+import java.util.ArrayDeque;
 
 public class SnakeView extends SurfaceView implements SurfaceHolder.Callback {
-    int x=500, y=1000, speedX=0, speedY=1, radius=1, width, height;
-    final int APPLE_RADIUS = 15;
+    public float x=500, y=1000, radius=15;
+    float speedX=0, speedY=1, speedCoefficient=1;
+    public int width, height;
+    ArrayDeque<Apple> apples = new ArrayDeque<>();
 
     public SnakeView(Context context) {
         super(context);
@@ -64,23 +68,17 @@ public class SnakeView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+    protected void onSizeChanged(int w, int h, int oldW, int oldH) {
         width = w;
         height = h;
-        super.onSizeChanged(w, h, oldw, oldh);
+        super.onSizeChanged(w, h, oldW, oldH);
     }
 
     void GenerateApple() {
-        x = (int)(Math.random() * (width - APPLE_RADIUS*2)) + APPLE_RADIUS;
-        y = (int)(Math.random() * (height - APPLE_RADIUS*2)) + APPLE_RADIUS + 5;
+        Apple apple = new Apple(this);
         Canvas canvas = getHolder().lockCanvas();
-        Paint paint = new Paint();
-        paint.setColor(Color.RED);
-        paint.setStyle(Paint.Style.FILL);
-        try {
-            canvas.drawCircle(x, y, APPLE_RADIUS, paint);
-        }
-        catch (Exception ignored) { }
+        apple.draw(canvas);
+        apples.add(apple);
     }
 
     class GameThread extends Thread {
@@ -92,28 +90,43 @@ public class SnakeView extends SurfaceView implements SurfaceHolder.Callback {
             paint.setStyle(Paint.Style.FILL);
         }
 
+        void onPostTick() {
+            x += speedX * speedCoefficient;
+            y += speedY * speedCoefficient;
+
+            for (Apple apple : apples) {
+                if (apple.checkCollision()) {
+                    radius += 5;
+                    speedCoefficient += 1;
+                    apples.remove(apple);
+                }
+            }
+
+            if (Math.random() < 1/150d)
+                GenerateApple();
+        }
+
         @Override
         public void run() {
             Canvas canvas;
             try {
-                for (int i = 0; i < 100000; i++) {
+                while (true) {
                     canvas = getHolder().lockCanvas();
-
                     canvas.drawColor(Color.BLUE);
-                    canvas.drawCircle(x, y, radius * 5, paint);
+                    canvas.drawCircle(x, y, radius, paint);
+                    for (Apple apple : apples)
+                        apple.draw(canvas);
 
                     getHolder().unlockCanvasAndPost(canvas);
 
-                    x += speedX;
-                    y += speedY;
-
-                    if (Math.random() < 1/150d)
-                        GenerateApple();
-
+                    onPostTick();
+                    //noinspection BusyWait
                     sleep(1/30);
                 }
             }
-            catch (Exception ignored) { }
+            catch (Exception ignored) {
+                Log.e("ERROR", ignored.getMessage() + ignored.getStackTrace());
+            }
         }
     }
 }
